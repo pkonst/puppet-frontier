@@ -8,10 +8,16 @@
 #   The customization config file to be used.
 #
 # [*customize_template*]
-#   The customization config template to be used.
+#   The customization config template to be used (default customize.sh.erb).
 #
 # [*cache_dir*]
 #   The cache directory.
+#
+# [*daemons*]
+#   The number of squid daemons to run (default 1).
+#
+# [*cache_size*]
+#   The maximum size of the cache (default 10000 KB).
 #
 # [*max_access_log*]
 #   The max size of the log before rotating them
@@ -33,19 +39,24 @@
 #
 # Alessandro De Salvo <Alessandro.DeSalvo@roma1.infn.it>
 #
+# Contributions from Preslav Konstantinov
+#
 # === Copyright
 #
 # Copyright 2014 Alessandro De Salvo
 #
 class frontier::squid (
   $customize_file = undef,
-  $customize_template = undef,
+  $customize_template = "frontier/$frontier::params::frontier_customize_template",
+  $cache_size = $frontier::params::frontier_cache_size,
   $cache_dir = $frontier::params::frontier_cache_dir,
   $max_access_log = undef,
+  $daemons = 1,
   $install_resource = false,
   $resource_path = $frontier::params::resource_agents_path
 ) inherits params {
   yumrepo {'cern-frontier':
+      descr => 'Frontier packages repo at CERN',
       baseurl => 'http://frontier.cern.ch/dist/rpms/',
       enabled => 1,
       gpgcheck => 1,
@@ -58,6 +69,22 @@ class frontier::squid (
       notify  => Service[$frontier::params::frontier_service]
   }
 
+  define cache_subdirs ( $count, $cache_dir ) {
+    $minus1 = inline_template('<%= @count.to_i - 1 %>')
+    file { "${cache_dir}/squid${$minus1}":
+      ensure  => directory,
+      owner   => squid,
+      group   => squid,
+      mode    => 0755,
+    }
+    if ( $minus1 > 0 ) {
+      cache_subdirs { "count-${minus1}":
+        cache_dir => $cache_dir,
+        count => $minus1,
+      }
+    }
+  }
+
   if ($cache_dir) {
       file { $cache_dir:
           ensure  => directory,
@@ -66,6 +93,13 @@ class frontier::squid (
           mode    => 0755,
           require => Package[$frontier::params::frontier_packages],
           notify  => Service[$frontier::params::frontier_service]
+      }
+
+      if ( $daemons > 1 ) {
+        cache_subdirs { 'start':
+          cache_dir => $cache_dir,
+          count => $daemons
+        }
       }
   }
 

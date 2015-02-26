@@ -8,8 +8,10 @@ class frontier::params {
       $frontier_packages = ['frontier-squid']
       $frontier_service = 'frontier-squid'
       $frontier_customize = '/etc/squid/customize.sh'
+      $frontier_customize_template = 'customize.sh.erb'
       $frontier_squidconf = '/etc/sysconfig/frontier-squid'
       $frontier_cache_dir = '/var/cache/squid'
+      $frontier_cache_size = 10000
       $resource_agents_path = '/usr/lib/ocf/resource.d/lcg'
     }
     default:   {
